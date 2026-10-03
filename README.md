@@ -39,9 +39,10 @@ para llevarla a un stack distinto. El código es el medio, no el fin.
 |---|---|
 | [`spec-python/`](spec-python/) | El spec de Simple Stock Flow escrito para un backend Python |
 | [`spec-.net/`](spec-.net/) | El mismo sistema especificado para un backend .NET |
+| [`spec-laravel/`](spec-laravel/) | Especificación formal traducida a Arquitectura Onion (Laravel + React) |
 
-Las dos versiones describen el **mismo producto** (las mismas historias, reglas de negocio y
-endpoints); cambian las decisiones de tecnología. Ninguna de las dos es el stack del reto.
+Las versiones describen el **mismo producto** (las mismas historias, reglas de negocio y
+endpoints); cambian las decisiones de tecnología. La carpeta `spec-laravel/` documenta formalmente la traducción a Arquitectura Onion en Laravel y React requerida para el reto.
 
 ## Cómo se lee el spec
 
