@@ -1,0 +1,324 @@
+openapi: 3.0.3
+info:
+  title: Simple Stock Flow API
+  description: API REST para control de stock y registro inmutable de ventas bajo Arquitectura Onion.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Servidor Local Docker
+  - url: http://localhost:8080/api
+    description: Proxy Inverso Nginx en Frontend
+
+paths:
+  /health:
+    get:
+      summary: Health Check (E-14)
+      description: Verifica la disponibilidad del servicio y la conectividad con la base de datos MySQL.
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: pass
+                  database:
+                    type: string
+                    example: connected
+
+  /api/auth/login:
+    post:
+      summary: Iniciar Sesión (E-01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: Admin12345!
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      username:
+                        type: string
+                      role:
+                        type: string
+                        enum: [admin, seller]
+        '422':
+          $ref: '#/components/responses/ProblemDetails422'
+
+  /api/auth/register:
+    post:
+      summary: Registrar Vendedor (E-02)
+      description: Solo accesible por administradores. Crea usuarios con rol 'seller'.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: nuevo_vendedor
+                password:
+                  type: string
+                  example: Password123!
+      responses:
+        '201':
+          description: Vendedor registrado
+        '403':
+          $ref: '#/components/responses/Empty403'
+        '422':
+          $ref: '#/components/responses/ProblemDetails422'
+
+  /api/products:
+    get:
+      summary: Listar Catálogo (E-03)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Listado paginado de productos
+    post:
+      summary: Crear Producto (E-05)
+      description: Solo accesible por administradores.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price, initialStock, categoryId]
+              properties:
+                name:
+                  type: string
+                price:
+                  type: number
+                initialStock:
+                  type: integer
+                categoryId:
+                  type: string
+      responses:
+        '201':
+          description: Producto creado
+        '422':
+          $ref: '#/components/responses/ProblemDetails422'
+
+  /api/products/{id}:
+    get:
+      summary: Ver Producto (E-04)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalle del producto
+        '404':
+          $ref: '#/components/responses/Empty404'
+    put:
+      summary: Actualizar Producto (E-06)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Producto actualizado
+        '422':
+          $ref: '#/components/responses/ProblemDetails422'
+    delete:
+      summary: Dar de Baja Producto (E-07)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Producto eliminado o marcado como inactivo
+
+  /api/sales:
+    post:
+      summary: Registrar Venta (E-10)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [productId, quantity]
+                    properties:
+                      productId:
+                        type: string
+                      quantity:
+                        type: integer
+      responses:
+        '201':
+          description: Venta registrada exitosamente
+        '400':
+          $ref: '#/components/responses/ProblemDetails400'
+        '422':
+          $ref: '#/components/responses/ProblemDetails422'
+    get:
+      summary: Listar Ventas (E-11)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Listado paginado de ventas históricas
+
+  /api/reports/sales:
+    get:
+      summary: Reporte Agregado de Ventas (E-13)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Reporte consolidado inalterable
+        '400':
+          $ref: '#/components/responses/ProblemDetails400'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    ProblemDetails400:
+      description: Error de validación de formato (RFC 7807)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type:
+                type: string
+                example: about:blank
+              title:
+                type: string
+                example: Bad Request
+              status:
+                type: integer
+                example: 400
+              detail:
+                type: string
+              errors:
+                type: object
+
+    ProblemDetails422:
+      description: Infracción de Regla de Negocio del Dominio (RFC 7807)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type:
+                type: string
+                example: about:blank
+              title:
+                type: string
+                example: Unprocessable Entity
+              status:
+                type: integer
+                example: 422
+              detail:
+                type: string
+                example: El stock disponible es insuficiente para la cantidad solicitada
+
+    Empty403:
+      description: Acceso no autorizado (Cuerpo vacío)
+      headers:
+        Content-Length:
+          schema:
+            type: integer
+            example: 0
+
+    Empty404:
+      description: Recurso no encontrado (Cuerpo vacío)
+      headers:
+        Content-Length:
+          schema:
+            type: integer
+            example: 0
